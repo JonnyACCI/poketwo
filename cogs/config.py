@@ -153,7 +153,7 @@ class Configuration(commands.Cog):
             if len(str(channel))>0:
               invalid_channels.append(channel)
           else:
-            valid_channel=client.get_channel(channel)
+            valid_channel=self.bot.get_channel(channel)
             valid_channels.append(valid_channel)
 
         if len(invalid_channels)==0:
