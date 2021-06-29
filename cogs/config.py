@@ -131,16 +131,44 @@ class Configuration(commands.Cog):
 
     @checks.is_admin()
     @commands.group(invoke_without_command=True, case_insensitive=True)
-    async def redirect(self, ctx: commands.Context, channels: commands.Greedy[discord.TextChannel]):
+    async def redirect(self, ctx: commands.Context, *, chosen_channels: str):
         """Redirect pokémon catches to one or more channels."""
 
-        if len(channels) == 0:
-            return await ctx.send("Please specify channels to redirect to!")
+        list_channels=chosen_channels.split(" ")
 
-        await self.bot.mongo.update_guild(
-            ctx.guild, {"$set": {"channels": [x.id for x in channels]}}
-        )
-        await ctx.send("Now redirecting spawns to " + ", ".join(x.mention for x in channels))
+        server_channels=[]
+        for chat in ctx.guild.channels:
+          server_channels.append(chat.id)
+
+        invalid_channels=[]
+        valid_channels=[]
+        for i in range(len(list_channels)):
+          channel = list_channels[i]
+          if len(channel)==18 and channel.isdecimal()==True:
+            channel=int(channel)
+          elif len(channel)==21 and channel.count("#")==1 and channel.count("<")==1 and channel.count(">")==1:
+            channel = int(channel[2:-1])
+          channel_count=server_channels.count(channel)
+          if channel_count==0:
+            if len(str(channel))>0:
+              invalid_channels.append(channel)
+          else:
+            valid_channel=client.get_channel(channel)
+            valid_channels.append(valid_channel)
+
+        if len(invalid_channels)==0:
+          await self.bot.mongo.update_guild(
+            ctx.guild, {"$set": {"channels": [x.id for x in valid_channels]}}
+          )
+          await ctx.send("Now redirecting spawns to " + ", ".join(x.mention for x in valid_channels))
+
+        else:
+          await ctx.send("Please redirect to valid channels. You have provided invalid channels: " + ", ".join(str(x) for x in invalid_channels))
+      
+    @redirect.error
+    async def redirect_error(ctx, error):
+      if isinstance(error, commands.MissingRequiredArgument):
+          await ctx.send("Please specify channels to redirect to!")
 
     @checks.is_admin()
     @redirect.command()
